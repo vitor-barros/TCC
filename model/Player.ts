@@ -6,8 +6,8 @@ export class Player {
     score: number;
     hand: Card[];
 
-    constructor(id: string, name: string) {
-        this.id = id;
+    constructor(name: string) {
+        this.id = crypto.randomUUID();
         this.name = name;
         this.score = 0;
         this.hand = [];

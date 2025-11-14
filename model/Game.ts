@@ -6,7 +6,7 @@ export class Game {
   timeline: Timeline;
   currentPlayerIndex: number;
 
-  constructor(players: Player[]) {
+  constructor(players: Player[] = []) {
     this.players = players;
     this.timeline = new Timeline();
     this.currentPlayerIndex = 0;
@@ -16,7 +16,17 @@ export class Game {
     return this.players[this.currentPlayerIndex];
   }
 
+  addPlayer(player: Player) {
+    this.players.push(player);
+  }
+
+  removePlayer(playerId: string) {
+    this.players = this.players.filter(p => p.id !== playerId);
+  }
+
   nextTurn() {
-    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    if (this.players.length > 0) {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    }
   }
 }
