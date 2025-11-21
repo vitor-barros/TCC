@@ -1,8 +1,18 @@
 "use client"; // ← permite usar eventos e animações no lado do cliente
 
 import React from "react";
+import { useRouter } from "next/navigation";
+
+
+
 
 export default function HomeScreen() {
+
+  const router = useRouter();
+  function handlePlayClick() {
+    router.push("/lobby");
+  }
+
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-[#f9f9fb] overflow-hidden px-4">
       {/* Ícones de fundo */}
@@ -38,7 +48,9 @@ export default function HomeScreen() {
         </h1>
 
         {/* botão principal */}
-        <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#7d2cff] text-white text-lg font-semibold rounded-xl shadow-md hover:bg-[#6825d4] transition-all duration-300 transform hover:scale-[1.02]">
+        <button 
+          onClick={handlePlayClick}
+          className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#7d2cff] text-white text-lg font-semibold rounded-xl shadow-md hover:bg-[#6825d4] transition-all duration-300 transform hover:scale-[1.02]">
           <span className="material-symbols-outlined">play_circle</span>
           Jogar
         </button>
