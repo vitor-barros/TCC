@@ -26,7 +26,7 @@ export const mockCardsRaw = [
   { id: "22", title: "Invenção do Telégrafo", imageUrl: "https://placecats.com/300/171", year: 1837 },
   { id: "23", title: "Invenção do Telefone (Bell)", imageUrl: "https://placecats.com/300/172", year: 1876 },
   { id: "24", title: "Primeiro Voo dos Irmãos Wright", imageUrl: "https://placecats.com/300/173", year: 1903 },
-  { id: "25", title: "Quebra da Bolsa de Nova York (1929)", imageUrl: "https://placecats.com/300/174", year: 1929 },
+  { id: "25", title: "Quebra da Bolsa de Nova York", imageUrl: "https://placecats.com/300/174", year: 1929 },
   { id: "26", title: "Unificação da Alemanha", imageUrl: "https://placecats.com/300/175", year: 1871 },
   { id: "27", title: "Unificação da Itália", imageUrl: "https://placecats.com/300/176", year: 1861 },
   { id: "28", title: "Descoberta da Penicilina", imageUrl: "https://placecats.com/300/177", year: 1928 },

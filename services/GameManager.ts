@@ -2,163 +2,252 @@
 import { Player } from "@/model/Player";
 import { Card } from "@/model/Card";
 
-type GuessEntry = { card: Card; guessedYear: number };
-type Placement = { card: Card; playerId: string; guessedYear: number };
+export type Placement = { 
+  card: Card; 
+  playerId: string; 
+  guessedYear: number;
+  isTemporary: boolean; // Novo: Indica se a carta ainda não foi pontuada (final da rodada)
+};
 
-class GameManager {
+export type GameStateJSON = {
+  players: any[];
+  timeline: Placement[];
+  roundActive: boolean;
+  
+  // Timer agora é do TURNO, não da rodada global
+  turnEndsAt: number | null; 
+  turnDuration: number;
+
+  currentRoundIndex: number;
+  currentPlayerIndex: number;
+  
+  // Guardamos palpites pendentes de pontuação
+  pendingScoring: { playerId: string; guess: { card: Card; guessedYear: number } }[];
+};
+
+export class GameManager {
   players: Player[] = [];
   timeline: Placement[] = [];
-  roundDuration = 30;
-  roundEndsAt: number | null = null;
-  roundTimerHandle: NodeJS.Timeout | null = null;
-
-  // round state
-  currentGuesses: Map<string, GuessEntry> = new Map(); // playerId -> guess
+  
   roundActive = false;
   currentRoundIndex = 0;
+  currentPlayerIndex = 0; // Índice de quem é a vez agora
 
-  // New: track whose turn it is
-  currentPlayerIndex: number = 0; // index into this.players when roundActive
-  // scoring config
+  // Configuração de Tempo
+  turnDuration = 60; // Configurado pelo lobby
+  turnEndsAt: number | null = null;
+
+  // Armazena jogadas feitas nesta rodada para pontuar no final
+  pendingScoring: Map<string, { card: Card; guessedYear: number }> = new Map();
+
   scoreMax = 100;
   scoreScale = 50;
 
   constructor() {}
 
-  // --- players
-  addPlayer(name: string) {
-    const p = new Player(name);
+  // --- SERIALIZAÇÃO ---
+  toJSON(): GameStateJSON {
+    return {
+      players: this.players,
+      timeline: this.timeline,
+      roundActive: this.roundActive,
+      turnEndsAt: this.turnEndsAt,     // ENVIA O TEMPO DO TURNO ATUAL
+      turnDuration: this.turnDuration,
+      currentRoundIndex: this.currentRoundIndex,
+      currentPlayerIndex: this.currentPlayerIndex,
+      pendingScoring: Array.from(this.pendingScoring.entries()).map(([pid, val]) => ({
+        playerId: pid,
+        guess: val
+      })),
+    };
+  }
+
+  fromJSON(json: GameStateJSON) {
+    if (!json) return;
+
+    this.players = (json.players || []).map((p: any) => {
+      const newP = new Player(p.name, p.id);
+      newP.score = p.score;
+      newP.hand = (p.hand || []).map((c: any) => new Card(c.id, c.title, c.imageUrl, c.year));
+      return newP;
+    });
+
+    this.timeline = json.timeline || [];
+    this.roundActive = json.roundActive ?? false;
+    
+    this.turnEndsAt = json.turnEndsAt ?? null;
+    this.turnDuration = json.turnDuration ?? 60;
+    
+    this.currentRoundIndex = json.currentRoundIndex ?? 0;
+    this.currentPlayerIndex = json.currentPlayerIndex ?? 0;
+
+    this.pendingScoring = new Map();
+    if (Array.isArray(json.pendingScoring)) {
+      json.pendingScoring.forEach((item) => {
+        const c = item.guess.card;
+        const cardObj = new Card(c.id, c.title, c.imageUrl, c.year);
+        this.pendingScoring.set(item.playerId, { card: cardObj, guessedYear: item.guess.guessedYear });
+      });
+    }
+
+    // CHECK LAZY: Verifica se o tempo do JOGADOR ATUAL estourou
+    this.checkTurnExpiration();
+  }
+
+  // --- LÓGICA DE TEMPO (TURNO) ---
+  checkTurnExpiration() {
+    if (this.roundActive && this.turnEndsAt && Date.now() > this.turnEndsAt) {
+      console.log(`Tempo do jogador ${this.currentPlayerIndex} esgotado. Passando a vez...`);
+      this.skipTurn();
+    }
+  }
+
+  skipTurn() {
+    // Jogador perde a vez, não joga carta, e passa para o próximo
+    // Opcional: penalidade de pontos? Por enquanto só passa.
+    this.advanceTurn();
+  }
+
+  // --- AÇÕES ---
+
+  addPlayer(uid: string, name: string) {
+    const existing = this.players.find(p => p.id === uid);
+    if (existing) return existing;
+    // Se o jogo já começou, não deixa entrar (ou entra como espectador, mas vamos simplificar)
+    if (this.roundActive || this.timeline.length > 0) return null;
+
+    const p = new Player(name, uid);
     this.players.push(p);
     return p;
   }
 
-  removePlayer(playerId: string) {
-    this.players = this.players.filter((p) => p.id !== playerId);
-  }
-
-  // --- seed + distribution
   seedAndDistribute(cards: Card[], cardsPerPlayer = 3) {
     const pool = [...cards];
+    // Shuffle
     for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
     }
 
-    // reset state
-    for (const p of this.players) {
-      p.hand = [];
-      p.score = 0;
-    }
+    this.players.forEach(p => { p.hand = []; p.score = 0; });
     this.timeline = [];
     this.currentRoundIndex = 0;
-    this.roundActive = false;
-    if (this.roundTimerHandle) {
-      clearTimeout(this.roundTimerHandle);
-      this.roundTimerHandle = null;
-    }
-    this.roundEndsAt = null;
-    this.currentGuesses.clear();
     this.currentPlayerIndex = 0;
+    this.roundActive = false;
+    this.turnEndsAt = null;
+    this.pendingScoring.clear();
 
-    // distribute unique cards
     let idx = 0;
     for (const p of this.players) {
-      for (let c = 0; c < cardsPerPlayer; c++) {
-        if (idx >= pool.length) break;
-        p.addCard(pool[idx]);
-        idx++;
-      }
+        for (let c = 0; c < cardsPerPlayer; c++) {
+            if (idx < pool.length) p.addCard(pool[idx++]);
+        }
     }
-
-    return {
-      ok: true,
-      players: this.players.map((p) => ({ id: p.id, name: p.name, handCount: p.hand.length })),
-      totalSeeded: pool.length,
-    };
+    return { ok: true };
   }
 
-  // --- state for frontend
-  getState() {
-    const now = Date.now();
-    const remaining = this.roundEndsAt ? Math.max(0, Math.ceil((this.roundEndsAt - now) / 1000)) : 0;
-    return {
-      players: this.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        score: p.score,
-        hand: p.hand.map((c) => ({ id: c.id, title: c.title, imageUrl: c.imageUrl })),
-      })),
-      timeline: this.timeline,
-      currentRoundIndex: this.currentRoundIndex,
-      roundActive: this.roundActive,
-      roundRemainingSeconds: remaining,
-      currentGuesses: Array.from(this.currentGuesses.entries()).map(([pid, entry]) => ({
-        playerId: pid,
-        cardId: entry.card.id,
-        guessedYear: entry.guessedYear,
-      })),
-      // New: expose who's turn it is (player id or null)
-      currentPlayerId: this.players[this.currentPlayerIndex]?.id ?? null,
-    };
-  }
-
-  // --- start round
-  startRound(durationSec?: number) {
-    if (this.roundActive) return { ok: false, error: "Round already active" };
+  startRound(turnDurationSec?: number) {
+    if (this.roundActive) return { ok: false, error: "Round active" };
     if (this.players.length === 0) return { ok: false, error: "No players" };
 
-    this.currentGuesses.clear();
-    this.roundDuration = durationSec ?? this.roundDuration;
-    this.roundEndsAt = Date.now() + this.roundDuration * 1000;
+    this.pendingScoring.clear();
+    this.turnDuration = turnDurationSec ?? this.turnDuration;
+    
     this.roundActive = true;
+    this.currentPlayerIndex = 0; // Começa pelo player 0
+    
+    // Inicia o timer do PRIMEIRO jogador
+    this.turnEndsAt = Date.now() + this.turnDuration * 1000;
 
-    // ensure currentPlayerIndex valid
-    if (this.currentPlayerIndex >= this.players.length) this.currentPlayerIndex = 0;
-
-    if (this.roundTimerHandle) clearTimeout(this.roundTimerHandle);
-    this.roundTimerHandle = setTimeout(() => {
-      this.resolveRound();
-    }, this.roundDuration * 1000);
-
-    return { ok: true, roundDuration: this.roundDuration, endsAt: this.roundEndsAt, currentPlayerId: this.players[this.currentPlayerIndex]?.id ?? null };
+    return { ok: true };
   }
 
-  /**
-   * placeGuess: a jogada é feita por um player com uma carta da própria mão
-   * ▶ fazemos: validar -> gravar -> REMOVER carta da mão -> avançar turno -> se todos jogaram, resolveRound()
-   */
   placeGuess(playerId: string, cardId: string, guessedYear: number) {
+    this.checkTurnExpiration();
+    
     if (!this.roundActive) return { ok: false, error: "Round not active" };
-    const player = this.players.find((p) => p.id === playerId);
-    if (!player) return { ok: false, error: "Player not found" };
-
-    const card = player.hand.find((c) => c.id === cardId);
-    if (!card) return { ok: false, error: "Card not found in player's hand" };
-
-    guessedYear = Math.max(1, Math.min(2025, Math.round(guessedYear)));
-
-    // remove card from hand (consumed)
-    player.removeCard(cardId);
-
-    // store guess
-    this.currentGuesses.set(playerId, { card, guessedYear });
-
-    // advance turn to next player who still exists
-    if (this.players.length > 0) {
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    
+    // Verifica se é a vez deste jogador
+    const currentPlayer = this.players[this.currentPlayerIndex];
+    if (!currentPlayer || currentPlayer.id !== playerId) {
+        return { ok: false, error: "Not your turn" };
     }
 
-    // if all players guessed (each player has an entry) -> resolve immediately
-    if (this.currentGuesses.size >= this.players.length) {
-      // clear timeout and resolve synchronously
-      if (this.roundTimerHandle) {
-        clearTimeout(this.roundTimerHandle);
-        this.roundTimerHandle = null;
-      }
-      this.resolveRound();
+    const cardIndex = currentPlayer.hand.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return { ok: false, error: "Card not in hand" };
+    
+    const card = currentPlayer.hand[cardIndex];
+    
+    // 1. Remove da mão
+    currentPlayer.hand.splice(cardIndex, 1);
+
+    // 2. Adiciona na Timeline IMEDIATAMENTE (Visualmente)
+    // isTemporary = true significa que ainda não foi validada (cor verde/amarela no front?)
+    this.timeline.push({ 
+        card, 
+        playerId, 
+        guessedYear, 
+        isTemporary: true 
+    });
+    // Ordena visualmente pelo ano chutado para o próximo ver a timeline montada
+    this.timeline.sort((a, b) => a.guessedYear - b.guessedYear);
+
+    // 3. Salva para pontuação futura
+    this.pendingScoring.set(playerId, { card, guessedYear });
+
+    // 4. Passa a vez
+    this.advanceTurn();
+
+    return { ok: true };
+  }
+
+  advanceTurn() {
+    // Incrementa índice
+    this.currentPlayerIndex++;
+
+    // Se o índice passou do último jogador, a rodada acabou!
+    if (this.currentPlayerIndex >= this.players.length) {
+        this.resolveRound();
+    } else {
+        // Se não, reinicia o timer para o próximo jogador
+        this.turnEndsAt = Date.now() + this.turnDuration * 1000;
+    }
+  }
+
+  resolveRound() {
+    // 1. Calcula Pontuação (Igual ao anterior)
+    for (const [pid, val] of Array.from(this.pendingScoring.entries())) {
+        const player = this.players.find(p => p.id === pid);
+        if (!player) continue;
+
+        const pts = this.computeScore(val.guessedYear, val.card.year);
+        player.addScore(pts);
     }
 
-    return { ok: true, nextPlayerId: this.players[this.currentPlayerIndex]?.id ?? null };
+    // 2. Torna as cartas da timeline permanentes
+    this.timeline.forEach(t => t.isTemporary = false);
+
+    // 3. Limpa palpites pendentes
+    this.pendingScoring.clear();
+
+    // 4. Verifica se alguém ganhou (ficou sem cartas na mão)
+    const winner = this.players.find(p => p.hand.length === 0);
+    if (winner) {
+        this.roundActive = false;
+        this.turnEndsAt = null;
+        console.log(`Fim de jogo! Vencedor: ${winner.name}`);
+        return; // O jogo acaba aqui
+    }
+
+    // 5. PREPARA A PRÓXIMA RODADA (Aqui está a correção!)
+    this.currentRoundIndex++;
+    this.currentPlayerIndex = 0; // Volta para o primeiro jogador
+    
+    // MANTÉM O JOGO ATIVO
+    this.roundActive = true; 
+    
+    // REINICIA O TIMER PARA O PRIMEIRO JOGADOR IMEDIATAMENTE
+    this.turnEndsAt = Date.now() + this.turnDuration * 1000;
   }
 
   computeScore(guessed: number, actual: number) {
@@ -167,56 +256,13 @@ class GameManager {
     return Math.max(0, score);
   }
 
-  resolveRound() {
-    if (!this.roundActive) return;
-    for (const [playerId, entry] of Array.from(this.currentGuesses.entries())) {
-      const player = this.players.find((p) => p.id === playerId);
-      if (!player) continue;
-      const pts = this.computeScore(entry.guessedYear, entry.card.year);
-      player.addScore(pts);
-      this.timeline.push({ card: entry.card, playerId: player.id, guessedYear: entry.guessedYear });
-    }
-
-    // round ended
-    this.roundActive = false;
-    this.currentRoundIndex++;
-    this.currentGuesses.clear();
-    if (this.roundTimerHandle) {
-      clearTimeout(this.roundTimerHandle);
-      this.roundTimerHandle = null;
-    }
-    this.roundEndsAt = null;
-    // after resolving, next round should start with same index (or you can advance)
-    // keep currentPlayerIndex as is (it already advanced on placeGuess)
-    if (this.currentPlayerIndex >= this.players.length) this.currentPlayerIndex = 0;
-  }
-
-  confirmRoundEarly() {
-    if (!this.roundActive) return { ok: false, error: "Round not active" };
-    if (this.roundTimerHandle) clearTimeout(this.roundTimerHandle);
-    this.resolveRound();
-    return { ok: true };
-  }
-
   resetMatch() {
-  // limpar lista de jogadores
-  this.players = [];
-
-  // limpar timeline e estado
-  this.timeline = [];
-  this.currentRoundIndex = 0;
-  this.roundActive = false;
-  this.currentGuesses.clear();
-
-  if (this.roundTimerHandle) {
-    clearTimeout(this.roundTimerHandle);
-    this.roundTimerHandle = null;
+      this.players = [];
+      this.timeline = [];
+      this.roundActive = false;
+      this.turnEndsAt = null;
+      this.pendingScoring.clear();
+      this.currentRoundIndex = 0;
+      this.currentPlayerIndex = 0;
   }
-
-  this.roundEndsAt = null;
-  this.currentPlayerIndex = 0;
 }
-}
-
-const game = new GameManager();
-export default game;

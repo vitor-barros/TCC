@@ -1,4 +1,4 @@
-"use client"; // ← permite usar eventos e animações no lado do cliente
+"use client";
 
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -62,7 +62,7 @@ export default function HomeScreen() {
             Como Jogar
           </button>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <button className="flex flex-col items-center justify-center gap-1 py-3 px-6 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-all duration-300">
               <span className="material-symbols-outlined text-3xl">person</span>
               Perfil
@@ -71,17 +71,17 @@ export default function HomeScreen() {
               <span className="material-symbols-outlined text-3xl">settings</span>
               Ajustes
             </button>
-          </div>
+          </div> */}
 
           <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#4285F4] text-white font-semibold rounded-xl shadow-md hover:bg-[#357ae8] transition-all duration-300 transform hover:scale-[1.02]">
             <span className="material-symbols-outlined">account_circle</span>
             Entrar com Google
           </button>
 
-          <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#d4b9ff] text-[#4b1c9b] font-semibold rounded-xl hover:bg-[#caa4ff] transition-all duration-300 transform hover:scale-[1.02]">
+          {/* <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#d4b9ff] text-[#4b1c9b] font-semibold rounded-xl hover:bg-[#caa4ff] transition-all duration-300 transform hover:scale-[1.02]">
             <span className="material-symbols-outlined">group_add</span>
             Criar Sala
-          </button>
+          </button> */}
         </div>
 
         {/* rodapé */}
