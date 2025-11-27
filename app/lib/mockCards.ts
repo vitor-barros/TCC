@@ -2,10 +2,10 @@
 import { Card } from "@/model/Card";
 
 export const mockCardsRaw = [
-  { id: "1", title: "Revolução Francesa", imageUrl: "https://placecats.com/300/150", year: 1789 },
-  { id: "2", title: "Queda do Muro de Berlim", imageUrl: "https://placecats.com/300/151", year: 1989 },
+  { id: "1", title: "Revolução Francesa", imageUrl: "/images/carta01.jpg", year: 1789 },
+  { id: "2", title: "Queda do Muro de Berlim", imageUrl: "/images/carta02.jpg", year: 1989 },
   { id: "3", title: "Descoberta da América", imageUrl: "https://placecats.com/300/152", year: 1492 },
-  { id: "4", title: "Independência dos Estados Unidos", imageUrl: "https://placecats.com/300/153", year: 1776 },
+  { id: "4", title: "Independência dos Estados Unidos", imageUrl: "/images/carta04.jpg", year: 1776 },
   { id: "5", title: "Invenção da Imprensa (Gutenberg)", imageUrl: "https://placecats.com/300/154", year: 1440 },
   { id: "6", title: "Queda de Constantinopla", imageUrl: "https://placecats.com/300/155", year: 1453 },
   { id: "7", title: "Primeira Guerra Mundial", imageUrl: "https://placecats.com/300/156", year: 1914 },

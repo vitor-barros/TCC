@@ -143,7 +143,7 @@ export default function LobbyPage() {
 
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <h1 className="text-3xl font-bold mb-2 text-slate-800">Lobby Multiplayer</h1>
-        <p className="text-sm text-slate-500 mb-6">Convide amigos. Todos devem acessar esta página.</p>
+        <p className="text-sm text-slate-500 mb-6"></p>
 
         {/* LISTA DE JOGADORES */}
         <div className="mb-6">
@@ -200,7 +200,7 @@ export default function LobbyPage() {
                 disabled={loading || playersOnServer.length < 1}
                 className="w-full py-4 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 transition disabled:opacity-50"
               >
-                {loading ? "Iniciando..." : "INICIAR PARTIDA 🚀"}
+                {loading ? "Iniciando..." : "INICIAR PARTIDA"}
               </button>
               
               <button onClick={() => router.push("/jogar")} className="block w-full text-center text-sm text-purple-600 underline">
