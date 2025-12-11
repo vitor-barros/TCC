@@ -12,6 +12,9 @@ export default function HomeScreen() {
   function handlePlayClick() {
     router.push("/lobby");
   }
+  function handlePlayClick2() {
+    router.push("/tutorial");
+  }
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-[#f9f9fb] overflow-hidden px-4">
@@ -57,7 +60,8 @@ export default function HomeScreen() {
 
         {/* secundarios */}
         <div className="w-full flex flex-col gap-3">
-          <button className="w-full flex items-center justify-center gap-3 py-3 px-6 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-all duration-300">
+          <button onClick={handlePlayClick2}
+          className="w-full flex items-center justify-center gap-3 py-3 px-6 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-all duration-300">
             <span className="material-symbols-outlined">help</span>
             Como Jogar
           </button>
@@ -73,10 +77,10 @@ export default function HomeScreen() {
             </button>
           </div> */}
 
-          <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#4285F4] text-white font-semibold rounded-xl shadow-md hover:bg-[#357ae8] transition-all duration-300 transform hover:scale-[1.02]">
+          {/* <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#4285F4] text-white font-semibold rounded-xl shadow-md hover:bg-[#357ae8] transition-all duration-300 transform hover:scale-[1.02]">
             <span className="material-symbols-outlined">account_circle</span>
             Entrar com Google
-          </button>
+          </button> */}
 
           {/* <button className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-[#d4b9ff] text-[#4b1c9b] font-semibold rounded-xl hover:bg-[#caa4ff] transition-all duration-300 transform hover:scale-[1.02]">
             <span className="material-symbols-outlined">group_add</span>
