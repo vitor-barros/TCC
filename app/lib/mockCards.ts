@@ -15,7 +15,7 @@ export const mockCardsRaw = [
   { id: "11", title: "Ataque a Pearl Harbor", imageUrl: "/images/carta11.jpg", year: 1941 },
   { id: "12", title: "Primeira Viagem à Lua (Apollo 11)", imageUrl: "/images/carta12.jpg", year: 1969 },
   { id: "13", title: "Início da Guerra Fria", imageUrl: "/images/carta13.jpg", year: 1947 },
-  { id: "14", title: "Queda do Império Romano (Ocidente)", imageUrl: "/images/carta14.jpg", year: 476 },
+  { id: "14", title: "Queda do Império Romano (Ocidente)", imageUrl: "/images/carta14.png", year: 476 },
   { id: "15", title: "Tratado de Versalhes", imageUrl: "/images/carta15.jpg", year: 1919 },
   { id: "16", title: "Revolução Industrial (inicio aproximado)", imageUrl: "/images/carta16.jpg", year: 1760 },
   { id: "17", title: "Primeiro Computador (ENIAC)", imageUrl: "/images/carta17.jpg", year: 1945 },
