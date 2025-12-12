@@ -272,23 +272,54 @@ export default function GameComponent() {
         {/* HEADER */}
         <header className="bg-white p-4 shadow flex justify-between items-center z-10 shrink-0">
             <div>
-               <h1 className="font-bold text-xl text-slate-800 hidden sm:block">Timeline</h1>
-               <div className="text-sm text-slate-500">
-                  Vez de: <span className="font-bold text-purple-600">{currentPlayerName}</span>
-               </div>
+                <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-purple-600 text-4xl">
+                        hourglass_top
+                    </span>
+                    <h1 className="font-bold text-xl text-slate-800 hidden sm:block">Timeline Game</h1>
+                </div>
+                
+                <div className="text-sm text-slate-500">
+                    Vez de: <span className="font-bold text-purple-600">{currentPlayerName}</span>
+                </div>
             </div>
+
             <div className={`text-3xl font-mono font-bold ${remainingTime < 10 ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
-               {remainingTime}s
+                {remainingTime}s
             </div>
-            <div className="flex gap-2 sm:gap-4 overflow-x-auto">
-                {players.map(p => (
-                    <div key={p.id} className={`flex flex-col items-center px-2 py-1 rounded transition-all ${p.id === currentPlayerId ? 'bg-purple-100 ring-2 ring-purple-400' : 'opacity-60'}`}>
-                        <div className="font-bold text-slate-800">{p.score}</div>
-                        <div className="text-[10px] uppercase font-bold text-slate-500 truncate max-w-[60px]">{p.name}</div>
-                        <div className="text-[10px] text-purple-600 font-bold">{p.hand.length} 🃏</div>
+
+            <div className="flex gap-3 sm:gap-6 overflow-x-auto items-center">
+    {players.map(p => {
+        const isActive = p.id === currentPlayerId;
+
+        return (
+            <div 
+                key={p.id} 
+                className={`
+                    flex flex-col items-center transition-all duration-300 px-2 py-1 rounded-lg
+                    ${isActive ? 'scale-110 opacity-100' : 'opacity-50 grayscale-[0.5]'}
+                `}
+            >
+                <div className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isActive ? 'text-purple-700' : 'text-slate-500'}`}>
+                    {p.name}
+                </div>
+                {/* linha de Status: Pontos | Cartas */}
+                <div className="flex items-center gap-2 bg-white/50 px-2 py-0.5 rounded-full border border-slate-200 shadow-sm">
+                    {/* pontos */}
+                    <span className="font-bold text-slate-800 text-xs">{p.score} pts</span>
+                    {/* divisoria */}
+                    <div className="w-px h-3 bg-slate-300"></div>
+                    {/* cartas */}
+                    <div className="flex items-center gap-1 text-purple-600">
+                        <span className="text-xs font-bold">{p.hand.length}</span>
+                        <span className="material-symbols-outlined text-[14px]">style</span>
                     </div>
-                ))}
+
+                </div>
             </div>
+        )
+    })}
+</div>
         </header>
 
         {/* TIMELINE (ÁREA PRINCIPAL) */}
