@@ -152,6 +152,14 @@ export default function LobbyPage() {
     }
   };
 
+  // Force Reset (Limpeza bruta direto no banco, sem passar pela API, para garantir)
+  const forceNuclearReset = async () => {
+      if(!confirm("Isso vai apagar TUDO no banco de dados. Tem certeza?")) return;
+      await set(ref(db, "sala_unica"), null);
+      alert("Banco limpo. Recarregue a página.");
+      window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md relative">
@@ -247,6 +255,11 @@ export default function LobbyPage() {
 
         <div className="mt-4 text-center text-xs font-bold text-purple-600 min-h-[20px]">{status}</div>
         
+        {/* NUCLEAR RESET */}
+        <button onClick={forceNuclearReset} className="mt-8 w-full py-2 border border-red-200 text-red-400 text-xs rounded hover:bg-red-50">
+           [DEBUG] Limpar Banco de Dados (Reset Total)
+        </button>
+
         <button 
             onClick={() => router.push("/")}
             className="mt-6 w-full py-3 flex items-center justify-center gap-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all text-sm font-bold group"
