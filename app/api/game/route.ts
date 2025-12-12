@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   // Verifica se o tempo do turno atual estourou ANTES de processar qualquer coisa
   game.checkTurnExpiration();
 
-  let resData: any = { ok: false, error: "Unknown action" };
+  let resData: any = { ok: false, error: "Ação Desconhecida" };
 
   try {
     switch (action) {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         if (body.name && body.uid) {
             const p = game.addPlayer(body.uid, body.name);
             if(p) resData = { ok: true, player: p };
-            else resData = { ok: false, error: "Cannot join now" };
+            else resData = { ok: false, error: "Partida em andamento! Aguarde a partida terminar." };
         }
         break;
 

@@ -200,7 +200,7 @@ export default function LobbyPage() {
                 value={myName} 
                 onChange={e => setMyName(e.target.value)} 
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                placeholder="Ex: Viajante do Tempo"
+                placeholder="Ex: Historiador123"
               />
               <button 
                 onClick={handleJoin} 
