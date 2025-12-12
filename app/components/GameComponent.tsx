@@ -9,8 +9,6 @@ import { Player } from "@/model/Player";
 import { useRouter } from "next/navigation"; 
 
 // --- CONSTANTES ---
-// 40px de "zona morta" nas laterais para facilitar a seleção dos extremos.
-// Equivale à classe 'px-10' do Tailwind (10 * 4px = 40px).
 const PADDING_X = 40; 
 
 type TimelineItem = { card: Card; playerId: string; guessedYear: number; isTemporary?: boolean };
@@ -18,7 +16,7 @@ type TimelineItem = { card: Card; playerId: string; guessedYear: number; isTempo
 export default function GameComponent() {
   const router = useRouter();
   
-  // --- ESTADOS DO JOGO (Server Sync) ---
+  // --- ESTADOS DO JOGO ---
   const [players, setPlayers] = useState<Player[]>([]);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [roundActive, setRoundActive] = useState(false);
@@ -40,7 +38,7 @@ export default function GameComponent() {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [inputYear, setInputYear] = useState<string>("");
 
-  // 1. Detectar Mobile vs Desktop
+  // 1. Detectar Mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile(); 
@@ -51,11 +49,7 @@ export default function GameComponent() {
   // 2. Auth Sync
   useEffect(() => {
      const unsub = onAuthStateChanged(auth, (user) => {
-        if (user) {
-            setMyUid(user.uid);
-        } else {
-            setMyUid(null);
-        }
+        if (user) { setMyUid(user.uid); } else { setMyUid(null); }
      });
      return () => unsub();
   }, []);
@@ -65,9 +59,7 @@ export default function GameComponent() {
     const roomRef = ref(db, "sala_unica");
     const unsub = onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
-      
       setIsDataLoaded(true);
-
       if (!data) return;
 
       const loadedPlayers = (data.players || []).map((p: any) => ({ ...p, hand: p.hand || [] }));
@@ -94,14 +86,11 @@ export default function GameComponent() {
     const i = setInterval(() => {
         const now = Date.now();
         const diff = Math.ceil((turnEndsAt - now) / 1000);
-        
         if (diff >= 0) {
             setRemainingTime(diff);
         } else {
             setRemainingTime(0);
-            if (roundActive) {
-                fetch("/api/game").catch(console.error);
-            }
+            if (roundActive) { fetch("/api/game").catch(console.error); }
             clearInterval(i);
         }
     }, 1000);
@@ -112,14 +101,12 @@ export default function GameComponent() {
   useEffect(() => {
     if (!isDataLoaded) return;
     if (!roundActive && timeline.length === 0) {
-        console.log("Jogo resetado detectado. Voltando ao lobby...");
         router.push("/lobby");
     }
   }, [roundActive, timeline, isDataLoaded, router]);
 
 
   // --- AÇÕES ---
-
   const confirmDragGuess = async () => {
       if (!dragCard || !hoverYear || !myUid) return;
       if (myUid !== currentPlayerId) { alert("Não é sua vez!"); setDragCard(null); return; }
@@ -142,28 +129,20 @@ export default function GameComponent() {
 
   const confirmMobileGuess = async () => {
       if (!selectedCard || !inputYear || !myUid) return;
-      
       const yearInt = parseInt(inputYear);
       if (isNaN(yearInt)) return; 
       if (yearInt < 1 || yearInt > 2025) {
           alert("Ano inválido! Escolha entre 1 e 2025.");
           return;
       }
-
       const cardId = selectedCard.id;
       setSelectedCard(null); 
-
       setMyHand(prev => prev.filter(c => c.id !== cardId));
 
       await fetch("/api/game", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ 
-              action: "place_guess", 
-              playerId: myUid, 
-              cardId: cardId, 
-              guessedYear: yearInt 
-          })
+          body: JSON.stringify({ action: "place_guess", playerId: myUid, cardId: cardId, guessedYear: yearInt })
       });
   };
 
@@ -175,27 +154,13 @@ export default function GameComponent() {
       });
   };
 
-  // --- LÓGICA CORRIGIDA DE CÁLCULO DE ANO ---
   const getYearFromX = (x: number) => {
       if (!timelineRef.current) return 2025;
-      
       const rect = timelineRef.current.getBoundingClientRect();
-      
-      // Largura "útil" é a largura total menos o padding das duas laterais
       const availableWidth = rect.width - (PADDING_X * 2);
-      
-      // Posição do mouse relativa ao início da área útil (descontando o padding esquerdo)
       const relativeX = x - rect.left - PADDING_X;
-
-      // Calcula a porcentagem baseada apenas na área útil
       let pct = relativeX / availableWidth;
-
-      // CLAMP (IMÃ): 
-      // Se pct < 0 (mouse na esquerda extrema), vira 0.
-      // Se pct > 1 (mouse na direita extrema), vira 1.
       pct = Math.max(0, Math.min(1, pct));
-
-      // Garante que o ano mínimo seja 1 e o máximo 2025
       const year = Math.round(pct * 2025);
       return Math.max(1, year); 
   };
@@ -221,34 +186,20 @@ export default function GameComponent() {
         className="flex flex-col h-screen bg-slate-50 select-none relative overflow-hidden" 
         onMouseUp={() => { if(!isMobile && dragCard) confirmDragGuess(); }} 
     >
-        
-        {/* --- [MOBILE] MODAL DE INPUT --- */}
+        {/* --- [MOBILE] MODAL DE INPUT (Mantido Igual) --- */}
         {isMobile && selectedCard && (
             <div className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
                 <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl border border-slate-200">
                     <h3 className="text-lg font-bold text-slate-700 mb-4">Qual é o ano?</h3>
                     <img src={selectedCard.imageUrl} className="w-32 h-32 object-cover rounded-lg mx-auto mb-4 shadow-md bg-gray-200" />
                     <div className="font-bold text-xl text-slate-900 mb-6">{selectedCard.title}</div>
-                    
                     <div className="mb-6">
                         <input 
-                            type="number" 
-                            min="1"
-                            max="2025"
-                            value={inputYear}
-                            onChange={(e) => setInputYear(e.target.value)}
-                            placeholder="Ex: 1990"
-                            autoFocus
-                            className={`w-full text-center text-3xl font-mono font-bold border-b-2 py-2 focus:outline-none rounded 
-                                ${isInputInvalid ? 'border-red-500 text-red-600 bg-red-50' : 'border-purple-500 focus:bg-purple-50'}`}
+                            type="number" min="1" max="2025" value={inputYear} onChange={(e) => setInputYear(e.target.value)} placeholder="Ex: 1990" autoFocus
+                            className={`w-full text-center text-3xl font-mono font-bold border-b-2 py-2 focus:outline-none rounded ${isInputInvalid ? 'border-red-500 text-red-600 bg-red-50' : 'border-purple-500 focus:bg-purple-50'}`}
                         />
-                        {isInputInvalid ? (
-                            <p className="text-xs text-red-500 font-bold mt-2 animate-pulse">O ano deve ser entre 1 e 2025</p>
-                        ) : (
-                            <p className="text-xs text-slate-400 mt-2">Digite o ano do evento</p>
-                        )}
+                        {isInputInvalid ? <p className="text-xs text-red-500 font-bold mt-2 animate-pulse">O ano deve ser entre 1 e 2025</p> : <p className="text-xs text-slate-400 mt-2">Digite o ano do evento</p>}
                     </div>
-
                     <div className="flex gap-3">
                         <button onClick={() => setSelectedCard(null)} className="flex-1 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300">Cancelar</button>
                         <button onClick={confirmMobileGuess} disabled={isButtonDisabled} className="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">Confirmar</button>
@@ -257,15 +208,13 @@ export default function GameComponent() {
             </div>
         )}
 
-        {/* --- MODAL DE VITÓRIA (Geral) --- */}
+        {/* --- MODAL VITÓRIA (Mantido Igual) --- */}
         {winner && !roundActive && (
             <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
                 <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center border-4 border-purple-500">
                     <div className="text-6xl mb-4">🏆</div>
                     <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Fim de Jogo!</h2>
-                    <p className="text-xl text-purple-600 font-bold mb-6">
-                        {winner.id === myUid ? "VOCÊ VENCEU!" : `${winner.name} Venceu!`}
-                    </p>
+                    <p className="text-xl text-purple-600 font-bold mb-6">{winner.id === myUid ? "VOCÊ VENCEU!" : `${winner.name} Venceu!`}</p>
                     <div className="bg-slate-100 rounded-xl p-4 mb-6 max-h-48 overflow-y-auto">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Placar Final</h3>
                         {sortedPlayers.map((p, i) => (
@@ -283,50 +232,60 @@ export default function GameComponent() {
             </div>
         )}
 
-        {/* HEADER */}
-        <header className="bg-white p-4 shadow flex justify-between items-center z-10 shrink-0 h-20">
-            <div>
-               <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-purple-600 text-4xl">hourglass_top</span>
-                    <h1 className="font-bold text-xl text-slate-800 hidden sm:block">Timeline Game</h1>
-               </div>
-               <div className="text-sm text-slate-500 mt-1">
-                  Vez de: <span className="font-bold text-purple-600">{currentPlayerName}</span>
-               </div>
-            </div>
+        {/* --- HEADER RESPONSIVO REDESENHADO --- */}
+        {/* Usamos flex-col no mobile e flex-row no desktop (md) */}
+        <header className="bg-white shadow z-10 shrink-0 flex flex-col md:flex-row">
             
-            <div className={`text-3xl font-mono font-bold ${remainingTime < 10 ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
-               {remainingTime}s
+            {/* PARTE 1: Informações e Timer (Topo) */}
+            <div className="flex justify-between items-center p-4 w-full md:w-auto md:flex-1 md:border-r border-slate-100">
+                <div>
+                   <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-purple-600 text-4xl">hourglass_top</span>
+                        <h1 className="font-bold text-xl text-slate-800 hidden sm:block">Timeline Game</h1>
+                   </div>
+                   <div className="text-sm text-slate-500 mt-1">
+                      Vez de: <span className="font-bold text-purple-600">{currentPlayerName}</span>
+                   </div>
+                </div>
+                
+                {/* Timer sempre fixo à direita deste bloco */}
+                <div className={`text-4xl font-mono font-bold ml-4 ${remainingTime < 10 ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
+                   {remainingTime}s
+                </div>
             </div>
 
-            <div className="flex gap-3 sm:gap-6 overflow-x-auto items-center py-4 px-2 scrollbar-hide">
-                {players.map(p => {
-                    const isActive = p.id === currentPlayerId;
-                    return (
-                        <div key={p.id} className={`flex flex-col items-center transition-all duration-300 px-2 py-1 rounded-lg shrink-0 ${isActive ? 'scale-110 opacity-100' : 'opacity-50 grayscale-[0.5]'}`}>
-                            <div className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isActive ? 'text-purple-700' : 'text-slate-500'}`}>{p.name}</div>
-                            <div className="flex items-center gap-2 bg-white/50 px-2 py-0.5 rounded-full border border-slate-200 shadow-sm whitespace-nowrap">
-                                <span className="font-bold text-slate-800 text-xs">{p.score} pts</span>
-                                <div className="w-px h-3 bg-slate-300"></div>
-                                <div className="flex items-center gap-1 text-purple-600">
-                                    <span className="text-xs font-bold">{p.hand.length}</span>
-                                    <span className="material-symbols-outlined text-[14px]">style</span>
+            {/* PARTE 2: Lista de Jogadores (Abaixo no mobile, Lado no desktop) */}
+            {/* Adicionei um background (bg-slate-50) e borda para delimitar bem a área */}
+            <div className="w-full md:w-auto bg-slate-50 md:bg-white border-t md:border-t-0 md:border-l border-slate-200 flex items-center px-4 py-3 md:py-0 overflow-x-auto scrollbar-hide shadow-inner md:shadow-none">
+                <div className="flex gap-4 items-center">
+                    {players.map(p => {
+                        const isActive = p.id === currentPlayerId;
+                        return (
+                            <div key={p.id} className={`relative flex flex-col items-center transition-all duration-300 px-3 py-1.5 rounded-xl shrink-0 border-2 ${isActive ? 'bg-white border-purple-500 shadow-md scale-105' : 'bg-transparent border-transparent opacity-60 grayscale'}`}>
+                                <div className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isActive ? 'text-purple-700' : 'text-slate-500'}`}>{p.name}</div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-800 text-xs">{p.score} pts</span>
+                                    <div className="w-px h-3 bg-slate-300"></div>
+                                    <div className="flex items-center gap-1 text-purple-600">
+                                        <span className="text-xs font-bold">{p.hand.length}</span>
+                                        <span className="material-symbols-outlined text-[14px]">style</span>
+                                    </div>
                                 </div>
+                                {/* Indicador visual extra para vez atual */}
+                                {isActive && <div className="absolute -bottom-1 w-2 h-2 bg-purple-500 rounded-full"></div>}
                             </div>
-                        </div>
-                    )
-                })}
+                        )
+                    })}
+                </div>
             </div>
         </header>
 
         {/* TIMELINE (Área Principal) */}
-        {/* 'px-10' (40px) cria o padding lateral onde o mouse vai "travar" nos extremos */}
         <div 
             ref={timelineRef}
             className="flex-1 relative bg-slate-200 border-y border-slate-300 shadow-inner cursor-crosshair w-full px-10"
             onMouseMove={(e) => !isMobile && dragCard && setHoverYear(getYearFromX(e.clientX))}
         >
-            {/* WRAPPER INTERNO (Zona Útil de 1 a 2025) */}
             <div className="relative w-full h-full">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-400 -translate-y-1/2"></div>
                 <div className="absolute bottom-2 left-0 text-xs text-slate-500 font-mono font-bold">1 DC</div>
@@ -340,7 +299,6 @@ export default function GameComponent() {
                     return (
                         <div 
                             key={idx} 
-                            // leftPct agora é relativo ao wrapper interno, garantindo alinhamento perfeito
                             className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center transition-all duration-500 group z-10 hover:z-20 hover:scale-110 origin-bottom"
                             style={{ left: `${leftPct}%`, transform: 'translate(-50%, -50%)' }}
                         >
@@ -373,7 +331,7 @@ export default function GameComponent() {
             </div>
         </div>
 
-        {/* MÃO (HAND) */}
+        {/* MÃO (HAND) (Mantido Igual) */}
         <div className={`h-48 md:h-56 p-4 flex flex-col items-center justify-center transition-colors duration-500 ${isMyTurn ? 'bg-purple-50' : 'bg-white'}`}>
             {!roundActive && !winner && <p className="text-slate-400 font-bold animate-pulse">Carregando rodada...</p>}
             

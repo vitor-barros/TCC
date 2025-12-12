@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Timeline Game",
-  description: "Challenge your knowledge of history against friends!",
+  description: "Teste seu conhecimento de história contra seus amigos!",
 };
 
 export default function RootLayout({
