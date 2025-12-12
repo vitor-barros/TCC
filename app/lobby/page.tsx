@@ -80,7 +80,7 @@ export default function LobbyPage() {
       }
     });
     return () => unsub();
-  }, [myUid, amIInList, router]); // Dependências importantes!
+  }, [myUid, amIInList, router]); 
 
 
   // Função para atualizar o tempo (SÓ O HOST PODE CHAMAR)
@@ -138,8 +138,6 @@ export default function LobbyPage() {
       });
 
       // 2. Start Round
-      // Ao dar sucesso aqui, o Firebase muda 'roundActive' para true
-      // e o useEffect nº 4 vai redirecionar todo mundo automaticamente.
       await fetch("/api/game", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,7 +150,7 @@ export default function LobbyPage() {
     }
   };
 
-  // Force Reset (Limpeza bruta direto no banco, sem passar pela API, para garantir)
+  // Force Reset (Limpeza bruta direto no banco)
   const forceNuclearReset = async () => {
       if(!confirm("Isso vai apagar TUDO no banco de dados. Tem certeza?")) return;
       await set(ref(db, "sala_unica"), null);
@@ -197,11 +195,15 @@ export default function LobbyPage() {
               <label className="block text-sm font-medium text-gray-700">Seu Nome</label>
               <input 
                 type="text" 
+                maxLength={10} // [ALTERAÇÃO 1] Limite de 10 caracteres
                 value={myName} 
                 onChange={e => setMyName(e.target.value)} 
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                placeholder="Ex: Historiador123"
+                placeholder="Ex: Historiador"
               />
+              {/* Contadorzinho visual opcional para UX */}
+              <div className="text-right text-[10px] text-slate-400 font-bold">{myName.length}/10</div>
+
               <button 
                 onClick={handleJoin} 
                 disabled={loading || !myName}
@@ -255,10 +257,12 @@ export default function LobbyPage() {
 
         <div className="mt-4 text-center text-xs font-bold text-purple-600 min-h-[20px]">{status}</div>
         
-        {/* NUCLEAR RESET */}
-        <button onClick={forceNuclearReset} className="mt-8 w-full py-2 border border-red-200 text-red-400 text-xs rounded hover:bg-red-50">
-           [DEBUG] Limpar Banco de Dados (Reset Total)
-        </button>
+        {/* [ALTERAÇÃO 2] NUCLEAR RESET - SÓ APARECE SE NOME FOR ADMIN */}
+        {myName.toLowerCase() === "admin" && (
+            <button onClick={forceNuclearReset} className="mt-8 w-full py-2 border border-red-200 text-red-400 text-xs rounded hover:bg-red-50 animate-pulse">
+                [DEBUG] Limpar Banco de Dados (Reset Total)
+            </button>
+        )}
 
         <button 
             onClick={() => router.push("/")}
