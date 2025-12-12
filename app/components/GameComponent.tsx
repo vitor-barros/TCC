@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-// ADICIONEI: onAuthStateChanged
 import { onAuthStateChanged } from "firebase/auth";
 import { onValue, ref } from "firebase/database";
 import { auth, db } from "../lib/firebase"; 
 import { Card } from "@/model/Card";
 import { Player } from "@/model/Player";
 import { useRouter } from "next/navigation"; 
+
+// --- CONSTANTES ---
+// 40px de "zona morta" nas laterais para facilitar a seleção dos extremos.
+// Equivale à classe 'px-10' do Tailwind (10 * 4px = 40px).
+const PADDING_X = 40; 
 
 type TimelineItem = { card: Card; playerId: string; guessedYear: number; isTemporary?: boolean };
 
@@ -44,26 +48,19 @@ export default function GameComponent() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // ==========================================================
-  // 2. CORREÇÃO DO BUG DO F5 (Auth Sync Robusto)
-  // ==========================================================
+  // 2. Auth Sync
   useEffect(() => {
-     // Em vez de checar apenas uma vez, ficamos ouvindo a mudança.
-     // Assim que o Firebase restaurar a sessão do F5, ele entra aqui.
      const unsub = onAuthStateChanged(auth, (user) => {
         if (user) {
             setMyUid(user.uid);
         } else {
-            // Se não tiver usuário (e não for delay de carregamento), volta pra home
-            // Mas cuidado para não expulsar antes de tentar carregar.
-            // Geralmente só setamos null.
             setMyUid(null);
         }
      });
      return () => unsub();
   }, []);
 
-  // 3. Firebase Listener (Principal)
+  // 3. Firebase Listener
   useEffect(() => {
     const roomRef = ref(db, "sala_unica");
     const unsub = onValue(roomRef, (snapshot) => {
@@ -91,7 +88,7 @@ export default function GameComponent() {
     return () => unsub();
   }, []);
 
-  // 4. Timer do Turno
+  // 4. Timer
   useEffect(() => {
     if (!turnEndsAt) { setRemainingTime(0); return; }
     const i = setInterval(() => {
@@ -111,7 +108,7 @@ export default function GameComponent() {
     return () => clearInterval(i);
   }, [turnEndsAt, roundActive]);
 
-  // 5. Listener de Reset Automático
+  // 5. Reset Listener
   useEffect(() => {
     if (!isDataLoaded) return;
     if (!roundActive && timeline.length === 0) {
@@ -178,11 +175,29 @@ export default function GameComponent() {
       });
   };
 
+  // --- LÓGICA CORRIGIDA DE CÁLCULO DE ANO ---
   const getYearFromX = (x: number) => {
       if (!timelineRef.current) return 2025;
+      
       const rect = timelineRef.current.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
-      return Math.round(pct * 2025);
+      
+      // Largura "útil" é a largura total menos o padding das duas laterais
+      const availableWidth = rect.width - (PADDING_X * 2);
+      
+      // Posição do mouse relativa ao início da área útil (descontando o padding esquerdo)
+      const relativeX = x - rect.left - PADDING_X;
+
+      // Calcula a porcentagem baseada apenas na área útil
+      let pct = relativeX / availableWidth;
+
+      // CLAMP (IMÃ): 
+      // Se pct < 0 (mouse na esquerda extrema), vira 0.
+      // Se pct > 1 (mouse na direita extrema), vira 1.
+      pct = Math.max(0, Math.min(1, pct));
+
+      // Garante que o ano mínimo seja 1 e o máximo 2025
+      const year = Math.round(pct * 2025);
+      return Math.max(1, year); 
   };
 
   const calculatePoints = (guessed: number, actual: number) => {
@@ -304,53 +319,58 @@ export default function GameComponent() {
             </div>
         </header>
 
-        {/* TIMELINE */}
+        {/* TIMELINE (Área Principal) */}
+        {/* 'px-10' (40px) cria o padding lateral onde o mouse vai "travar" nos extremos */}
         <div 
             ref={timelineRef}
-            className="flex-1 relative bg-slate-200 overflow-hidden border-y border-slate-300 shadow-inner cursor-crosshair"
+            className="flex-1 relative bg-slate-200 border-y border-slate-300 shadow-inner cursor-crosshair w-full px-10"
             onMouseMove={(e) => !isMobile && dragCard && setHoverYear(getYearFromX(e.clientX))}
         >
-            <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-400 -translate-y-1/2"></div>
-            <div className="absolute bottom-2 left-2 text-xs text-slate-500 font-mono">0 DC</div>
-            <div className="absolute bottom-2 right-2 text-xs text-slate-500 font-mono">2025 DC</div>
+            {/* WRAPPER INTERNO (Zona Útil de 1 a 2025) */}
+            <div className="relative w-full h-full">
+                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-400 -translate-y-1/2"></div>
+                <div className="absolute bottom-2 left-0 text-xs text-slate-500 font-mono font-bold">1 DC</div>
+                <div className="absolute bottom-2 right-0 text-xs text-slate-500 font-mono font-bold">2025 DC</div>
 
-            {timeline.map((item, idx) => {
-                const leftPct = (item.guessedYear / 2025) * 100;
-                const isExact = item.guessedYear === item.card.year;
-                const points = calculatePoints(item.guessedYear, item.card.year);
+                {timeline.map((item, idx) => {
+                    const leftPct = (item.guessedYear / 2025) * 100;
+                    const isExact = item.guessedYear === item.card.year;
+                    const points = calculatePoints(item.guessedYear, item.card.year);
 
-                return (
-                    <div 
-                        key={idx} 
-                        className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center transition-all duration-500 group z-10 hover:z-20 hover:scale-110 origin-bottom"
-                        style={{ left: `${leftPct}%`, transform: 'translate(-50%, -50%)' }}
-                    >
-                        <div className={`w-0.5 h-8 mb-1 ${item.isTemporary ? 'bg-yellow-500' : 'bg-slate-800'}`}></div>
-                        <div className={`p-1 rounded shadow-md w-24 text-center bg-white border-2 ${item.isTemporary ? 'border-yellow-400 ring-2 ring-yellow-200' : 'border-slate-200'}`}>
-                            <div className="text-[9px] font-bold truncate text-slate-800 leading-tight mb-1">{item.card.title}</div>
-                            {item.card.imageUrl && (
-                                <img src={item.card.imageUrl} className="w-full h-14 object-cover rounded bg-gray-100 mb-1" alt="" />
-                            )}
-                            <div className={`text-[10px] font-mono font-bold ${item.isTemporary ? 'text-yellow-600' : 'text-purple-700'}`}>
-                                {item.guessedYear}
-                            </div>
-                            {!item.isTemporary && (
-                                <div className="mt-1 pt-1 border-t border-slate-100 animate-fade-in bg-green-50 rounded-b">
-                                    <div className={`text-[9px] font-bold ${isExact ? 'text-green-600' : 'text-slate-500'}`}>Real: {item.card.year}</div>
-                                    <div className="text-[9px] font-extrabold text-green-700">+{points} pts</div>
+                    return (
+                        <div 
+                            key={idx} 
+                            // leftPct agora é relativo ao wrapper interno, garantindo alinhamento perfeito
+                            className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center transition-all duration-500 group z-10 hover:z-20 hover:scale-110 origin-bottom"
+                            style={{ left: `${leftPct}%`, transform: 'translate(-50%, -50%)' }}
+                        >
+                            <div className={`w-0.5 h-8 mb-1 ${item.isTemporary ? 'bg-yellow-500' : 'bg-slate-800'}`}></div>
+                            <div className={`p-1 rounded shadow-md w-24 text-center bg-white border-2 ${item.isTemporary ? 'border-yellow-400 ring-2 ring-yellow-200' : 'border-slate-200'}`}>
+                                <div className="text-[9px] font-bold truncate text-slate-800 leading-tight mb-1">{item.card.title}</div>
+                                {item.card.imageUrl && (
+                                    <img src={item.card.imageUrl} className="w-full h-14 object-cover rounded bg-gray-100 mb-1" alt="" />
+                                )}
+                                <div className={`text-[10px] font-mono font-bold ${item.isTemporary ? 'text-yellow-600' : 'text-purple-700'}`}>
+                                    {item.guessedYear}
                                 </div>
-                            )}
+                                {!item.isTemporary && (
+                                    <div className="mt-1 pt-1 border-t border-slate-100 animate-fade-in bg-green-50 rounded-b">
+                                        <div className={`text-[9px] font-bold ${isExact ? 'text-green-600' : 'text-slate-500'}`}>Real: {item.card.year}</div>
+                                        <div className="text-[9px] font-extrabold text-green-700">+{points} pts</div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                    )
+                })}
+                
+                {!isMobile && dragCard && hoverYear !== null && (
+                    <div className="absolute top-1/2 -translate-y-1/2 pointer-events-none opacity-90 z-50 flex flex-col items-center" style={{ left: `${(hoverYear / 2025) * 100}%`, transform: 'translate(-50%, -50%)' }}>
+                        <div className="bg-purple-600 text-white font-bold px-3 py-1 rounded-full mb-2 text-sm shadow-xl animate-bounce">{hoverYear}</div>
+                        <div className="w-28 bg-white p-1 rounded-lg border-2 border-purple-600 shadow-2xl rotate-3"><img src={dragCard.imageUrl} className="w-full h-20 object-cover rounded" /></div>
                     </div>
-                )
-            })}
-            
-            {!isMobile && dragCard && hoverYear !== null && (
-                <div className="absolute top-1/2 -translate-y-1/2 pointer-events-none opacity-90 z-50 flex flex-col items-center" style={{ left: `${(hoverYear / 2025) * 100}%`, transform: 'translate(-50%, -50%)' }}>
-                    <div className="bg-purple-600 text-white font-bold px-3 py-1 rounded-full mb-2 text-sm shadow-xl animate-bounce">{hoverYear}</div>
-                    <div className="w-28 bg-white p-1 rounded-lg border-2 border-purple-600 shadow-2xl rotate-3"><img src={dragCard.imageUrl} className="w-full h-20 object-cover rounded" /></div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
 
         {/* MÃO (HAND) */}
