@@ -376,7 +376,7 @@ export default function GameComponent() {
                         key={card.id}
                         onMouseDown={() => !isMobile && isMyTurn && setDragCard(card)}
                         onClick={() => isMobile && isMyTurn && handleMobileCardClick(card)}
-                        className={`relative w-28 md:w-32 flex-shrink-0 bg-white rounded-xl shadow-md p-2 border border-slate-100 transition-all duration-300 select-none ${isMyTurn ? 'cursor-pointer hover:-translate-y-3 hover:shadow-xl hover:border-purple-300 hover:rotate-1 active:scale-95' : 'opacity-60 grayscale filter cursor-not-allowed'}`}
+                        className={`relative w-28 md:w-32 flex-shrink-0 bg-white rounded-xl shadow-md border border-slate-100 transition-all duration-300 select-none ${isMyTurn ? 'cursor-pointer hover:-translate-y-3 hover:shadow-xl hover:border-purple-300 hover:rotate-1 active:scale-95' : 'opacity-60 grayscale filter cursor-not-allowed'}`}
                     >
                         <img src={card.imageUrl} className="w-full h-24 object-cover rounded-lg mb-2 bg-gray-100" draggable={false} />
                         <div className="text-center font-bold text-[10px] md:text-xs text-slate-700 leading-tight h-8 flex items-center justify-center">{card.title}</div>
